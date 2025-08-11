@@ -301,6 +301,37 @@
       0%, 100% { transform: scale(1); box-shadow: 0 18px 50px rgba(102,126,234,.45), 0 0 60px rgba(240,147,251,.35); }
       50% { transform: scale(1.05); box-shadow: 0 22px 64px rgba(102,126,234,.65), 0 0 80px rgba(240,147,251,.55); }
     }
+    
+    /* Optimized click overlay styles */
+    .click-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      cursor: pointer;
+      backdrop-filter: blur(2px);
+      transition: opacity 0.3s ease;
+      will-change: opacity;
+    }
+    
+    .click-overlay-content {
+      color: white;
+      font-size: 18px;
+      text-align: center;
+      padding: 20px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+      border: 1px solid rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px);
+      animation: pulse 2s infinite;
+      will-change: transform;
+    }
   </style>
 </head>
 <body>
@@ -371,15 +402,19 @@
       pulseRing: document.getElementById('pulseRing')
     };
     
-    // Cache bar elements
-    const bars = Array.from(elements.visualizer.querySelectorAll('.bar'));
-    const BAR_COUNT = bars.length;
+    // Optimized bar elements cache
+    let bars = [];
+    let BAR_COUNT = 0;
+    let barsInitialized = false;
 
     let isPlaying = false;
     let audioCtx, analyser, dataArray, rafId, sourceNode;
     let lastFrameTime = 0;
-    const FPS_LIMIT = 30; // Limit to 30fps for smoother performance
+    const FPS_LIMIT = 60; // Increased for smoother animation
     const FRAME_INTERVAL = 1000 / FPS_LIMIT;
+    let isLowPerformance = false;
+    let frameCount = 0;
+    let performanceCheckTime = performance.now();
     
     elements.audio.volume = 0.7;
 
@@ -388,51 +423,96 @@
       if (audioCtx) return;
       try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        sourceNode = audioCtx.createMediaElementSource(elements.audio);
         analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 512; // Reduced for better performance
-        analyser.smoothingTimeConstant = 0.85;
         
-        const gain = audioCtx.createGain();
-        gain.gain.value = 1;
-
-        sourceNode.connect(analyser);
-        analyser.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        // Optimize analyser settings for performance
+        analyser.fftSize = isLowPerformance ? 32 : 64;
+        analyser.smoothingTimeConstant = 0.8;
+        analyser.minDecibels = -90;
+        analyser.maxDecibels = -10;
+        
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+        
+        if (!sourceNode) {
+          sourceNode = audioCtx.createMediaElementSource(elements.audio);
+          sourceNode.connect(analyser);
+          analyser.connect(audioCtx.destination);
+        }
+        
+        // Initialize bars cache
+        initializeBars();
       } catch (e) {
-        console.warn('WebAudio unavailable', e);
+        console.warn('Audio context setup failed:', e);
       }
+    }
+    
+    // Pre-cache bar elements for better performance
+    function initializeBars() {
+      if (barsInitialized) return;
+      const barElements = elements.visualizer.querySelectorAll('.bar');
+      bars.length = 0; // Clear array
+      barElements.forEach(bar => {
+        bars.push({
+          element: bar,
+          transform: bar.style.transform || 'scaleY(0.1)',
+          lastHeight: 0.1
+        });
+      });
+      BAR_COUNT = bars.length;
+      barsInitialized = true;
     }
 
     // Optimized animation with frame limiting
-    function animate(currentTime) {
-      if (!analyser) return;
+    function animate() {
+      if (!isPlaying || !analyser || !barsInitialized) return;
       
-      // Frame rate limiting
-      if (currentTime - lastFrameTime < FRAME_INTERVAL) {
+      const now = performance.now();
+      
+      // Performance monitoring
+      frameCount++;
+      if (frameCount % 120 === 0) { // Check every 2 seconds at 60fps
+        const elapsed = now - performanceCheckTime;
+        const actualFPS = (frameCount * 1000) / elapsed;
+        if (actualFPS < 45 && !isLowPerformance) {
+          isLowPerformance = true;
+          console.log('Switching to low performance mode');
+          // Reduce quality for better performance
+          if (analyser) {
+            analyser.fftSize = 32;
+          }
+        }
+        frameCount = 0;
+        performanceCheckTime = now;
+      }
+      
+      const targetInterval = isLowPerformance ? FRAME_INTERVAL * 2 : FRAME_INTERVAL;
+      if (now - lastFrameTime < targetInterval) {
         rafId = requestAnimationFrame(animate);
         return;
       }
-      lastFrameTime = currentTime;
+      lastFrameTime = now;
       
       analyser.getByteFrequencyData(dataArray);
       
-      const step = Math.floor(dataArray.length / BAR_COUNT);
-      let level = 0;
+      const dataStep = Math.floor(dataArray.length / bars.length);
       
-      // Use transform for better performance
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const v = dataArray[i * step] / 255;
-        const scale = 0.2 + v * 1.6;
-        // Use transform3d for GPU acceleration
-        bars[i].style.transform = `scaleY(${scale}) translate3d(0,0,0)`;
-        level += v;
+      // Batch DOM updates for better performance
+      let hasChanges = false;
+      
+      for (let i = 0; i < bars.length; i++) {
+        const bar = bars[i];
+        const dataIndex = Math.min(i * dataStep, dataArray.length - 1);
+        const value = dataArray[dataIndex];
+        const height = Math.max(0.1, (value / 255) * 0.9 + 0.1);
+        
+        // Only update if change is significant (reduces repaints)
+        if (Math.abs(height - bar.lastHeight) > 0.05) {
+          bar.element.style.transform = `scaleY(${height})`;
+          bar.lastHeight = height;
+          hasChanges = true;
+        }
       }
-      
-      // Update pulse ring
-      level = level / BAR_COUNT;
       const ringScale = 1 + level * 0.25;
       const ringOpacity = 0.18 + level * 0.35;
       elements.pulseRing.style.transform = `translate(-50%,-50%) scale(${ringScale}) translate3d(0,0,0)`;
@@ -497,17 +577,28 @@
       }
     });
 
-    // Optimized progress update with throttling
-    let progressTimeout;
+    // Highly optimized progress update with RAF throttling
+    let progressRafId;
+    let lastProgressUpdate = 0;
+    
     elements.audio.addEventListener('timeupdate', () => {
-      if (progressTimeout) return;
-      progressTimeout = setTimeout(() => {
-        progressTimeout = null;
-        if (!isNaN(elements.audio.duration)) {
+      if (progressRafId) return;
+      
+      progressRafId = requestAnimationFrame(() => {
+        progressRafId = null;
+        const now = performance.now();
+        
+        // Throttle to ~10fps for progress bar (sufficient for smooth appearance)
+        if (now - lastProgressUpdate < 100) return;
+        lastProgressUpdate = now;
+        
+        if (!isNaN(elements.audio.duration) && elements.audio.duration > 0) {
           const pct = (elements.audio.currentTime / elements.audio.duration) * 100;
-          elements.progress.style.width = pct + '%';
+          // Use transform instead of width for better performance
+          elements.progress.style.transform = `scaleX(${pct / 100})`;
+          elements.progress.style.transformOrigin = 'left';
         }
-      }, 100); // Update every 100ms max
+      });
     });
 
     // Progress bar interaction
@@ -556,64 +647,94 @@
       elements.audio.volume = e.target.value / 100;
     });
 
-    // Enhanced autoplay with multiple attempts
-    let autoplayAttempted = false;
+    // Smart autoplay - start on any user interaction
+    let musicStarted = false;
+    let userHasInteracted = false;
     
-    function attemptAutoplay() {
-      if (autoplayAttempted) return;
-      autoplayAttempted = true;
+    function startMusic() {
+      if (musicStarted) return;
       
+      console.log('Starting music...');
       elements.audio.play().then(() => {
-        console.log('Autoplay successful');
+        console.log('Music started successfully!');
+        musicStarted = true;
         isPlaying = true;
         startVisualizer();
         updatePlayButton();
         elements.playerCard.classList.remove('paused');
-      }).catch(error => {
-        console.log('Autoplay blocked:', error.message);
-        isPlaying = false;
-        updatePlayButton();
-        elements.playerCard.classList.add('paused');
+        elements.playBtn.style.animation = '';
         
-        // Show a subtle indication that user interaction is needed
+        // Remove the click overlay
+        const overlay = document.getElementById('clickOverlay');
+        if (overlay) {
+          overlay.style.opacity = '0';
+          setTimeout(() => overlay.remove(), 300);
+        }
+      }).catch(error => {
+        console.log('Failed to start music:', error.message);
         elements.playBtn.style.animation = 'pulse 2s infinite';
       });
     }
     
-    // Try autoplay on various events
-    window.addEventListener('load', attemptAutoplay);
-    document.addEventListener('DOMContentLoaded', attemptAutoplay);
+    // Optimized click overlay creation
+    function createClickOverlay() {
+      const overlay = document.createElement('div');
+      overlay.id = 'clickOverlay';
+      
+      // Use CSS classes instead of inline styles for better performance
+      overlay.className = 'click-overlay';
+      
+      const content = document.createElement('div');
+      content.className = 'click-overlay-content';
+      content.textContent = '🎵 Click anywhere to start the music 🎵';
+      
+      overlay.appendChild(content);
+      
+      // Use passive event listener for better performance
+      overlay.addEventListener('click', () => {
+        userHasInteracted = true;
+        startMusic();
+      }, { passive: true });
+      
+      document.body.appendChild(overlay);
+    }
     
-    // Try autoplay on first user interaction
-    const enableAutoplay = () => {
-      if (!autoplayAttempted) {
-        attemptAutoplay();
+    // Initialize on page load
+    window.addEventListener('load', () => {
+      createClickOverlay();
+      // Also try direct autoplay (might work in some cases)
+      setTimeout(startMusic, 100);
+    });
+    
+    // Handle any user interaction to start music
+    const handleUserInteraction = (e) => {
+      if (!userHasInteracted && !musicStarted) {
+        userHasInteracted = true;
+        startMusic();
       }
-      // Remove the pulse animation once user interacts
-      elements.playBtn.style.animation = '';
     };
     
-    ['click', 'touchstart', 'keydown', 'mousemove'].forEach(event => {
-      document.addEventListener(event, enableAutoplay, { once: true, passive: true });
+    // Listen for user interactions
+    ['click', 'touchstart', 'keydown'].forEach(event => {
+      document.addEventListener(event, handleUserInteraction, { once: true, passive: true });
     });
 
-    // Resume audio context on first gesture (iOS) and attempt autoplay
+    // Resume audio context on first gesture (iOS)
     ['click', 'touchend', 'touchstart'].forEach(evt => {
       window.addEventListener(evt, () => {
         if (audioCtx && audioCtx.state === 'suspended') {
           audioCtx.resume().then(() => {
-            // Try to play after resuming audio context
-            if (!isPlaying && !autoplayAttempted) {
-              attemptAutoplay();
+            if (!musicStarted) {
+              startMusic();
             }
           });
         }
       }, { once: true });
     });
 
-    // Pause when page hidden
+    // Pause when page hidden (but don't affect music startup)
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && isPlaying) {
+      if (document.hidden && isPlaying && musicStarted) {
         elements.audio.pause();
         isPlaying = false;
         stopVisualizer();
@@ -621,26 +742,42 @@
       }
     });
 
-    // Optimized tilt effect with throttling
-    let tiltTimeout;
+    // Highly optimized tilt effect with RAF and reduced calculations
+    let tiltRafId;
     let lastTiltUpdate = 0;
     const TILT_THROTTLE = 16; // ~60fps max
+    let cachedRect;
+    let rectUpdateTime = 0;
     
     elements.playerCard.addEventListener('pointermove', e => {
-      const now = Date.now();
-      if (now - lastTiltUpdate < TILT_THROTTLE) return;
-      lastTiltUpdate = now;
+      if (tiltRafId) return;
       
-      const rect = elements.playerCard.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
-      const rx = (0.5 - y) * 8;
-      const ry = (x - 0.5) * 10;
-      elements.playerCard.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) translate3d(0,0,0)`;
+      tiltRafId = requestAnimationFrame(() => {
+        tiltRafId = null;
+        const now = performance.now();
+        
+        if (now - lastTiltUpdate < TILT_THROTTLE) return;
+        lastTiltUpdate = now;
+        
+        // Cache rect for 100ms to avoid expensive getBoundingClientRect calls
+        if (!cachedRect || now - rectUpdateTime > 100) {
+          cachedRect = elements.playerCard.getBoundingClientRect();
+          rectUpdateTime = now;
+        }
+        
+        const x = (e.clientX - cachedRect.left) / cachedRect.width;
+        const y = (e.clientY - cachedRect.top) / cachedRect.height;
+        const rx = (0.5 - y) * 8;
+        const ry = (x - 0.5) * 10;
+        
+        // Use transform3d for hardware acceleration
+        elements.playerCard.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translate3d(0,0,0)`;
+      });
     });
     
     elements.playerCard.addEventListener('pointerleave', () => {
-      elements.playerCard.style.transform = 'rotateX(0deg) rotateY(0deg) translate3d(0,0,0)';
+      cachedRect = null; // Clear cache
+      elements.playerCard.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translate3d(0,0,0)';
     });
   </script>
 </body>
