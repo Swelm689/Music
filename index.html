@@ -26,114 +26,254 @@
       overflow: hidden;
     }
 
-    .bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
+    /* Optimize background animations */
+    .bg { 
+      position: fixed; 
+      inset: 0; 
+      z-index: -2; 
+      pointer-events: none;
+      will-change: auto; /* Only when animating */
+    }
     .bg::before {
-      content: ""; position: absolute; inset: -20%;
+      content: ""; 
+      position: absolute; 
+      inset: -20%;
       background:
         radial-gradient(600px 600px at 0% 100%, #43e97b33, transparent 60%),
-        radial-gradient(700px 700px at 100% 0%, #4facfe22, transparent 60%),
-        conic-gradient(from 180deg at 50% 50%, #667eea20, #f093fb10, #764ba220, #00f5d410, #667eea20);
+        radial-gradient(700px 700px at 100% 0%, #4facfe22, transparent 60%);
       filter: blur(40px) saturate(120%);
-      animation: aurora 16s linear infinite;
+      animation: aurora 20s linear infinite;
+      transform: translate3d(0,0,0); /* Force GPU */
     }
     .bg::after {
-      content: ""; position: absolute; inset: 0;
-      background:
-        radial-gradient(800px 800px at 50% 120%, rgba(255,255,255,.06), transparent 60%),
-        repeating-linear-gradient(135deg, rgba(255,255,255,.03) 0 2px, transparent 2px 10px);
-      mix-blend-mode: overlay; opacity: .7; animation: float 22s ease-in-out infinite;
+      content: ""; 
+      position: absolute; 
+      inset: 0;
+      background: radial-gradient(800px 800px at 50% 120%, rgba(255,255,255,.06), transparent 60%);
+      mix-blend-mode: overlay; 
+      opacity: .7; 
+      animation: float 25s ease-in-out infinite;
+      transform: translate3d(0,0,0);
     }
-    @keyframes aurora { 0% { transform: translate3d(0,0,0) rotate(0) } 100% { transform: translate3d(0,0,0) rotate(1turn) } }
-    @keyframes float { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-20px) } }
+    
+    /* Simplified animations */
+    @keyframes aurora { 
+      0% { transform: translate3d(0,0,0) rotate(0) } 
+      100% { transform: translate3d(0,0,0) rotate(360deg) } 
+    }
+    @keyframes float { 
+      0%, 100% { transform: translate3d(0, 0, 0) } 
+      50% { transform: translate3d(0, -20px, 0) } 
+    }
 
     .stage {
       height: 100dvh;
       padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-      display: flex; align-items: center; justify-content: center;
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
     }
 
     .player {
-      position: relative; width: min(92vw, 680px);
+      position: relative; 
+      width: min(92vw, 680px);
       background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
       border: 1px solid var(--stroke);
-      border-radius: 28px; box-shadow: var(--shadow);
+      border-radius: 28px; 
+      box-shadow: var(--shadow);
       backdrop-filter: blur(24px) saturate(120%);
       -webkit-backdrop-filter: blur(24px) saturate(120%);
-      padding: 28px 26px 26px; overflow: hidden; transform-style: preserve-3d;
+      padding: 28px 26px 26px; 
+      overflow: hidden; 
+      transform-style: preserve-3d;
+      will-change: transform;
+      transform: translate3d(0,0,0);
+      transition: transform 0.1s ease-out;
     }
+    
     .player::before {
-      content: ""; position: absolute; inset: -40%;
-      background:
-        radial-gradient(closest-side, rgba(102,126,234,.25), transparent 70%),
-        radial-gradient(closest-side, rgba(240,147,251,.20), transparent 70%),
-        radial-gradient(closest-side, rgba(0,245,212,.12), transparent 70%);
-      filter: blur(60px); transform: translateZ(-60px) scale(1.1);
+      content: ""; 
+      position: absolute; 
+      inset: -40%;
+      background: radial-gradient(closest-side, rgba(102,126,234,.25), transparent 70%);
+      filter: blur(60px); 
+      transform: translateZ(-60px) scale(1.1);
+      pointer-events: none;
     }
 
     .pulse-ring {
-      position: absolute; top: 50%; left: 50%; width: 220px; height: 220px;
-      transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
-      background: radial-gradient(closest-side, rgba(255,255,255,.25), transparent),
-                  radial-gradient(closest-side, rgba(102,126,234,.35), transparent 70%);
-      mix-blend-mode: screen; opacity: .35; filter: blur(8px);
-      transition: transform .2s ease, opacity .2s ease;
+      position: absolute; 
+      top: 50%; 
+      left: 50%; 
+      width: 220px; 
+      height: 220px;
+      transform: translate(-50%, -50%) scale(1);
+      border-radius: 50%; 
+      pointer-events: none;
+      background: radial-gradient(closest-side, rgba(102,126,234,.35), transparent 70%);
+      mix-blend-mode: screen; 
+      opacity: .35;
+      will-change: transform, opacity;
+      transition: none; /* We'll animate via JS */
     }
 
     .visualizer {
-      height: 180px; display: flex; align-items: flex-end; justify-content: center; gap: 8px;
-      margin: 8px auto 24px; position: relative; z-index: 1;
+      height: 180px; 
+      display: flex; 
+      align-items: flex-end; 
+      justify-content: center; 
+      gap: 8px;
+      margin: 8px auto 24px; 
+      position: relative; 
+      z-index: 1;
+      contain: layout style paint;
     }
+    
     .bar {
-      width: clamp(6px, 1.2vw, 10px); height: 20%; transform-origin: bottom center; border-radius: 8px;
+      width: clamp(6px, 1.2vw, 10px); 
+      height: 20%; 
+      transform-origin: bottom center; 
+      border-radius: 8px;
       background: linear-gradient(180deg, #f093fb, #667eea);
-      box-shadow: 0 6px 20px rgba(240,147,251,.35), 0 0 14px rgba(102,126,234,.35) inset;
-      transition: opacity .25s ease; will-change: transform;
+      box-shadow: 0 6px 20px rgba(240,147,251,.35);
+      will-change: transform;
+      transform: scaleY(0.2) translate3d(0,0,0);
+      transition: none; /* Animate via JS for better control */
     }
-    .player.paused .bar { opacity: .55; }
+    
+    .player.paused .bar { 
+      opacity: .55; 
+      transition: opacity .25s ease;
+    }
 
     .progress-wrap { margin-bottom: 22px; }
     .progress-bar {
-      position: relative; height: 10px; width: 100%; background: rgba(255,255,255,.18);
-      border-radius: 999px; overflow: hidden; cursor: pointer; box-shadow: inset 0 1px 6px rgba(0,0,0,.35);
+      position: relative; 
+      height: 10px; 
+      width: 100%; 
+      background: rgba(255,255,255,.18);
+      border-radius: 999px; 
+      overflow: hidden; 
+      cursor: pointer; 
+      box-shadow: inset 0 1px 6px rgba(0,0,0,.35);
+      contain: layout style paint;
     }
-    .progress { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent), var(--teal));
-      box-shadow: 0 0 22px rgba(240,147,251,.6); border-radius: 999px; transition: width .12s linear; }
+    
+    .progress { 
+      height: 100%; 
+      width: 0%; 
+      background: linear-gradient(90deg, var(--primary), var(--accent), var(--teal));
+      box-shadow: 0 0 22px rgba(240,147,251,.6); 
+      border-radius: 999px; 
+      will-change: width;
+      transform: translate3d(0,0,0);
+    }
+    
+    /* Remove expensive sheen animation */
     .progress-bar::after {
-      content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,.35), transparent, rgba(255,255,255,.35));
-      mix-blend-mode: overlay; opacity: .35; animation: sheen 3.2s infinite linear;
+      display: none;
     }
-    @keyframes sheen { 0% { transform: translateX(-100%) } 100% { transform: translateX(100%) } }
 
-    .controls { display: flex; align-items: center; justify-content: center; gap: 22px; margin-bottom: 16px; }
+    .controls { 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      gap: 22px; 
+      margin-bottom: 16px; 
+    }
+    
     .control-btn {
-      width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.06));
-      border: 2px solid rgba(255,255,255,.26); color: #fff; display: grid; place-items: center; cursor: pointer;
-      position: relative; overflow: hidden; transition: transform .15s ease, border-color .2s ease, box-shadow .2s ease, background .25s ease;
-      box-shadow: 0 10px 26px rgba(0,0,0,.35), 0 0 0 0 rgba(240,147,251,.0);
+      width: 64px; 
+      height: 64px; 
+      border-radius: 50%; 
+      background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.06));
+      border: 2px solid rgba(255,255,255,.26); 
+      color: #fff; 
+      display: grid; 
+      place-items: center; 
+      cursor: pointer;
+      position: relative; 
+      overflow: hidden; 
+      transition: transform .15s ease, border-color .2s ease, box-shadow .2s ease;
+      box-shadow: 0 10px 26px rgba(0,0,0,.35);
+      will-change: transform;
+      transform: translate3d(0,0,0);
     }
-    .control-btn:hover { transform: translateY(-2px) scale(1.03); border-color: #f093fb; box-shadow: 0 14px 36px rgba(0,0,0,.4), 0 0 24px rgba(240,147,251,.45); }
-    .control-btn:active { transform: scale(.96); }
-    .control-btn svg { width: 26px; height: 26px; fill: currentColor; }
+    
+    .control-btn:hover { 
+      transform: translate3d(0, -2px, 0) scale(1.03); 
+      border-color: #f093fb; 
+      box-shadow: 0 14px 36px rgba(0,0,0,.4), 0 0 24px rgba(240,147,251,.45); 
+    }
+    
+    .control-btn:active { 
+      transform: scale(.96); 
+    }
+    
+    .control-btn svg { 
+      width: 26px; 
+      height: 26px; 
+      fill: currentColor; 
+    }
 
-    .play-btn { width: 88px; height: 88px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none;
-      box-shadow: 0 18px 50px rgba(102,126,234,.45), 0 0 60px rgba(240,147,251,.35); }
-    .play-btn:hover { box-shadow: 0 22px 64px rgba(102,126,234,.55), 0 0 80px rgba(240,147,251,.5); }
-    .play-btn svg { width: 34px; height: 34px; }
+    .play-btn { 
+      width: 88px; 
+      height: 88px; 
+      background: linear-gradient(135deg, var(--primary), var(--accent)); 
+      border: none;
+      box-shadow: 0 18px 50px rgba(102,126,234,.45), 0 0 60px rgba(240,147,251,.35); 
+    }
+    
+    .play-btn:hover { 
+      box-shadow: 0 22px 64px rgba(102,126,234,.55), 0 0 80px rgba(240,147,251,.5); 
+    }
+    
+    .play-btn svg { 
+      width: 34px; 
+      height: 34px; 
+    }
 
-    .volume { display: flex; align-items: center; gap: 14px; justify-content: center; }
-    .volume-icon { width: 22px; height: 22px; opacity: .85; }
+    .volume { 
+      display: flex; 
+      align-items: center; 
+      gap: 14px; 
+      justify-content: center; 
+    }
+    
+    .volume-icon { 
+      width: 22px; 
+      height: 22px; 
+      opacity: .85; 
+    }
+    
     .volume-slider {
-      width: clamp(180px, 40vw, 320px); appearance: none; height: 8px; border-radius: 999px; outline: none;
-      background: rgba(255,255,255,.18); cursor: pointer; position: relative;
+      width: clamp(180px, 40vw, 320px); 
+      appearance: none; 
+      height: 8px; 
+      border-radius: 999px; 
+      outline: none;
+      background: rgba(255,255,255,.18); 
+      cursor: pointer; 
+      position: relative;
     }
+    
     .volume-slider::-webkit-slider-thumb {
-      appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      appearance: none; 
+      width: 22px; 
+      height: 22px; 
+      border-radius: 50%;
       background: radial-gradient(circle at 30% 30%, #fff, #d8d8d8);
-      border: 2px solid rgba(255,255,255,.6); box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 20px rgba(240,147,251,.5);
+      border: 2px solid rgba(255,255,255,.6); 
+      box-shadow: 0 6px 18px rgba(0,0,0,.35);
     }
+    
     .volume-slider::-moz-range-thumb {
-      width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #fff, #d8d8d8);
-      border: 2px solid rgba(255,255,255,.6); box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 20px rgba(240,147,251,.5);
+      width: 22px; 
+      height: 22px; 
+      border-radius: 50%; 
+      background: radial-gradient(circle at 30% 30%, #fff, #d8d8d8);
+      border: 2px solid rgba(255,255,255,.6); 
+      box-shadow: 0 6px 18px rgba(0,0,0,.35);
       border-image: none;
     }
 
@@ -141,6 +281,7 @@
       .visualizer { height: 140px; gap: 6px; }
       .play-btn { width: 84px; height: 84px; }
     }
+    
     @media (max-width: 480px) {
       .player { padding: 22px 18px 18px; border-radius: 24px; }
       .visualizer { height: 110px; gap: 5px; }
@@ -148,9 +289,17 @@
       .play-btn { width: 78px; height: 78px; }
       .volume-slider { width: 70vw; }
     }
+    
     @media (prefers-reduced-motion: reduce) {
-      .bg::before, .bg::after, .progress-bar::after { animation: none; }
+      .bg::before, .bg::after { animation: none; }
       .control-btn:hover { transform: none; }
+      .bar { transition: transform 0.3s ease; }
+    }
+    
+    /* Pulse animation for play button when autoplay is blocked */
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 18px 50px rgba(102,126,234,.45), 0 0 60px rgba(240,147,251,.35); }
+      50% { transform: scale(1.05); box-shadow: 0 22px 64px rgba(102,126,234,.65), 0 0 80px rgba(240,147,251,.55); }
     }
   </style>
 </head>
@@ -199,38 +348,51 @@
     </div>
   </main>
 
-  <audio id="audio" preload="auto" loop>
+  <audio id="audio" preload="auto" loop autoplay>
     <source src="mix_42s%20(audio-joiner.com)%20(1).mp3" type="audio/mpeg" />
   </audio>
 
   <script>
-    const audio = document.getElementById('audio');
-    const playBtn = document.getElementById('playBtn');
-    const playIcon = document.getElementById('playIcon');
-    const pauseIcon = document.getElementById('pauseIcon');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const progressBar = document.getElementById('progressBar');
-    const progress = document.getElementById('progress');
-    const volumeSlider = document.getElementById('volumeSlider');
-    const visualizer = document.getElementById('visualizer');
-    const playerCard = document.getElementById('playerCard');
-    const pulseRing = document.getElementById('pulseRing');
+    'use strict';
+    
+    // Cache DOM elements
+    const elements = {
+      audio: document.getElementById('audio'),
+      playBtn: document.getElementById('playBtn'),
+      playIcon: document.getElementById('playIcon'),
+      pauseIcon: document.getElementById('pauseIcon'),
+      prevBtn: document.getElementById('prevBtn'),
+      nextBtn: document.getElementById('nextBtn'),
+      progressBar: document.getElementById('progressBar'),
+      progress: document.getElementById('progress'),
+      volumeSlider: document.getElementById('volumeSlider'),
+      visualizer: document.getElementById('visualizer'),
+      playerCard: document.getElementById('playerCard'),
+      pulseRing: document.getElementById('pulseRing')
+    };
+    
+    // Cache bar elements
+    const bars = Array.from(elements.visualizer.querySelectorAll('.bar'));
+    const BAR_COUNT = bars.length;
 
     let isPlaying = false;
-    audio.volume = 0.7;
-
     let audioCtx, analyser, dataArray, rafId, sourceNode;
-    const BAR_COUNT = visualizer.querySelectorAll('.bar').length;
+    let lastFrameTime = 0;
+    const FPS_LIMIT = 30; // Limit to 30fps for smoother performance
+    const FRAME_INTERVAL = 1000 / FPS_LIMIT;
+    
+    elements.audio.volume = 0.7;
 
+    // Optimized audio setup
     function setupAudioGraph() {
       if (audioCtx) return;
       try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        sourceNode = audioCtx.createMediaElementSource(audio);
+        sourceNode = audioCtx.createMediaElementSource(elements.audio);
         analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 1024;
-        analyser.smoothingTimeConstant = 0.8;
+        analyser.fftSize = 512; // Reduced for better performance
+        analyser.smoothingTimeConstant = 0.85;
+        
         const gain = audioCtx.createGain();
         gain.gain.value = 1;
 
@@ -240,116 +402,246 @@
 
         dataArray = new Uint8Array(analyser.frequencyBinCount);
       } catch (e) {
-        console.warn('WebAudio unavailable, falling back to CSS animation.', e);
+        console.warn('WebAudio unavailable', e);
       }
     }
 
-    function animate() {
+    // Optimized animation with frame limiting
+    function animate(currentTime) {
       if (!analyser) return;
+      
+      // Frame rate limiting
+      if (currentTime - lastFrameTime < FRAME_INTERVAL) {
+        rafId = requestAnimationFrame(animate);
+        return;
+      }
+      lastFrameTime = currentTime;
+      
       analyser.getByteFrequencyData(dataArray);
-
-      const bars = visualizer.querySelectorAll('.bar');
+      
       const step = Math.floor(dataArray.length / BAR_COUNT);
       let level = 0;
-
+      
+      // Use transform for better performance
       for (let i = 0; i < BAR_COUNT; i++) {
-        const v = dataArray[i * step] / 255; // 0..1
-        const scale = 0.2 + v * 1.6; // min height + boost
-        bars[i].style.transform = 'scaleY(' + scale.toFixed(3) + ')';
+        const v = dataArray[i * step] / 255;
+        const scale = 0.2 + v * 1.6;
+        // Use transform3d for GPU acceleration
+        bars[i].style.transform = `scaleY(${scale}) translate3d(0,0,0)`;
         level += v;
       }
-
+      
+      // Update pulse ring
       level = level / BAR_COUNT;
       const ringScale = 1 + level * 0.25;
       const ringOpacity = 0.18 + level * 0.35;
-      pulseRing.style.transform = 'translate(-50%,-50%) scale(' + ringScale.toFixed(3) + ')';
-      pulseRing.style.opacity = ringOpacity.toFixed(3);
-
+      elements.pulseRing.style.transform = `translate(-50%,-50%) scale(${ringScale}) translate3d(0,0,0)`;
+      elements.pulseRing.style.opacity = ringOpacity;
+      
       rafId = requestAnimationFrame(animate);
     }
 
-    function startVisualizer() { setupAudioGraph(); if (!rafId) rafId = requestAnimationFrame(animate); }
-    function stopVisualizer() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
+    function startVisualizer() {
+      setupAudioGraph();
+      if (!rafId) {
+        lastFrameTime = 0;
+        rafId = requestAnimationFrame(animate);
+      }
+    }
+    
+    function stopVisualizer() {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      // Reset bars smoothly
+      bars.forEach(bar => {
+        bar.style.transform = 'scaleY(0.2) translate3d(0,0,0)';
+      });
+    }
 
     function updatePlayButton() {
-      playIcon.style.display = isPlaying ? 'none' : 'block';
-      pauseIcon.style.display = isPlaying ? 'block' : 'none';
-      playerCard.classList.toggle('paused', !isPlaying);
+      elements.playIcon.style.display = isPlaying ? 'none' : 'block';
+      elements.pauseIcon.style.display = isPlaying ? 'block' : 'none';
+      elements.playerCard.classList.toggle('paused', !isPlaying);
     }
 
     function togglePlay() {
       if (isPlaying) {
-        audio.pause(); isPlaying = false; stopVisualizer();
+        elements.audio.pause();
+        isPlaying = false;
+        stopVisualizer();
       } else {
-        audio.play().then(() => {
-          if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-          startVisualizer(); isPlaying = true;
-        }).catch(() => { isPlaying = false; });
+        elements.audio.play().then(() => {
+          if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+          startVisualizer();
+          isPlaying = true;
+        }).catch(() => {
+          isPlaying = false;
+        });
       }
       if (navigator.vibrate) navigator.vibrate(10);
       updatePlayButton();
     }
 
-    playBtn.addEventListener('click', togglePlay);
-
-    // Seek controls repurposed: -10s / +10s
-    prevBtn.addEventListener('click', () => { audio.currentTime = Math.max(0, audio.currentTime - 10); });
-    nextBtn.addEventListener('click', () => { if (!isNaN(audio.duration)) audio.currentTime = Math.min(audio.duration, audio.currentTime + 10); });
-
-    // Progress
-    audio.addEventListener('timeupdate', () => {
-      if (isNaN(audio.duration)) return;
-      const pct = (audio.currentTime / audio.duration) * 100;
-      progress.style.width = pct + '%';
+    // Event listeners
+    elements.playBtn.addEventListener('click', togglePlay);
+    elements.prevBtn.addEventListener('click', () => {
+      elements.audio.currentTime = Math.max(0, elements.audio.currentTime - 10);
+    });
+    elements.nextBtn.addEventListener('click', () => {
+      if (!isNaN(elements.audio.duration)) {
+        elements.audio.currentTime = Math.min(elements.audio.duration, elements.audio.currentTime + 10);
+      }
     });
 
+    // Optimized progress update with throttling
+    let progressTimeout;
+    elements.audio.addEventListener('timeupdate', () => {
+      if (progressTimeout) return;
+      progressTimeout = setTimeout(() => {
+        progressTimeout = null;
+        if (!isNaN(elements.audio.duration)) {
+          const pct = (elements.audio.currentTime / elements.audio.duration) * 100;
+          elements.progress.style.width = pct + '%';
+        }
+      }, 100); // Update every 100ms max
+    });
+
+    // Progress bar interaction
     function setProgressByClientX(clientX) {
-      const rect = progressBar.getBoundingClientRect();
+      const rect = elements.progressBar.getBoundingClientRect();
       const x = Math.min(Math.max(0, clientX - rect.left), rect.width);
       const pct = x / rect.width;
-      if (!isNaN(audio.duration)) audio.currentTime = pct * audio.duration;
+      if (!isNaN(elements.audio.duration)) {
+        elements.audio.currentTime = pct * elements.audio.duration;
+      }
     }
 
     let dragging = false;
-    progressBar.addEventListener('mousedown', e => { dragging = true; setProgressByClientX(e.clientX); });
-    window.addEventListener('mousemove', e => { if (dragging) setProgressByClientX(e.clientX); });
-    window.addEventListener('mouseup', () => dragging = false);
-
-    progressBar.addEventListener('touchstart', e => { dragging = true; setProgressByClientX(e.touches[0].clientX); }, { passive: true });
-    progressBar.addEventListener('touchmove', e => { if (dragging) setProgressByClientX(e.touches[0].clientX); }, { passive: false });
-    progressBar.addEventListener('touchend', () => dragging = false);
-
-    // Volume
-    volumeSlider.addEventListener('input', e => { audio.volume = e.target.value / 100; });
-
-    // Autoplay attempt; wait for gesture if blocked
-    window.addEventListener('load', () => {
-      audio.play().then(() => { isPlaying = true; startVisualizer(); updatePlayButton(); })
-                   .catch(() => { isPlaying = false; updatePlayButton(); });
+    elements.progressBar.addEventListener('mousedown', e => {
+      dragging = true;
+      setProgressByClientX(e.clientX);
+    });
+    
+    window.addEventListener('mousemove', e => {
+      if (dragging) setProgressByClientX(e.clientX);
+    });
+    
+    window.addEventListener('mouseup', () => {
+      dragging = false;
     });
 
-    // Resume audio context on first gesture (iOS)
-    ['click','touchend'].forEach(evt => {
+    // Touch events
+    elements.progressBar.addEventListener('touchstart', e => {
+      dragging = true;
+      setProgressByClientX(e.touches[0].clientX);
+    }, { passive: true });
+    
+    elements.progressBar.addEventListener('touchmove', e => {
+      if (dragging) {
+        e.preventDefault();
+        setProgressByClientX(e.touches[0].clientX);
+      }
+    }, { passive: false });
+    
+    elements.progressBar.addEventListener('touchend', () => {
+      dragging = false;
+    });
+
+    // Volume control
+    elements.volumeSlider.addEventListener('input', e => {
+      elements.audio.volume = e.target.value / 100;
+    });
+
+    // Enhanced autoplay with multiple attempts
+    let autoplayAttempted = false;
+    
+    function attemptAutoplay() {
+      if (autoplayAttempted) return;
+      autoplayAttempted = true;
+      
+      elements.audio.play().then(() => {
+        console.log('Autoplay successful');
+        isPlaying = true;
+        startVisualizer();
+        updatePlayButton();
+        elements.playerCard.classList.remove('paused');
+      }).catch(error => {
+        console.log('Autoplay blocked:', error.message);
+        isPlaying = false;
+        updatePlayButton();
+        elements.playerCard.classList.add('paused');
+        
+        // Show a subtle indication that user interaction is needed
+        elements.playBtn.style.animation = 'pulse 2s infinite';
+      });
+    }
+    
+    // Try autoplay on various events
+    window.addEventListener('load', attemptAutoplay);
+    document.addEventListener('DOMContentLoaded', attemptAutoplay);
+    
+    // Try autoplay on first user interaction
+    const enableAutoplay = () => {
+      if (!autoplayAttempted) {
+        attemptAutoplay();
+      }
+      // Remove the pulse animation once user interacts
+      elements.playBtn.style.animation = '';
+    };
+    
+    ['click', 'touchstart', 'keydown', 'mousemove'].forEach(event => {
+      document.addEventListener(event, enableAutoplay, { once: true, passive: true });
+    });
+
+    // Resume audio context on first gesture (iOS) and attempt autoplay
+    ['click', 'touchend', 'touchstart'].forEach(evt => {
       window.addEventListener(evt, () => {
-        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().then(() => {
+            // Try to play after resuming audio context
+            if (!isPlaying && !autoplayAttempted) {
+              attemptAutoplay();
+            }
+          });
+        }
       }, { once: true });
     });
 
     // Pause when page hidden
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && isPlaying) { audio.pause(); isPlaying = false; stopVisualizer(); updatePlayButton(); }
+      if (document.hidden && isPlaying) {
+        elements.audio.pause();
+        isPlaying = false;
+        stopVisualizer();
+        updatePlayButton();
+      }
     });
 
-    // Subtle tilt parallax
-    playerCard.addEventListener('pointermove', e => {
-      const rect = playerCard.getBoundingClientRect();
+    // Optimized tilt effect with throttling
+    let tiltTimeout;
+    let lastTiltUpdate = 0;
+    const TILT_THROTTLE = 16; // ~60fps max
+    
+    elements.playerCard.addEventListener('pointermove', e => {
+      const now = Date.now();
+      if (now - lastTiltUpdate < TILT_THROTTLE) return;
+      lastTiltUpdate = now;
+      
+      const rect = elements.playerCard.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = (e.clientY - rect.top) / rect.height;
       const rx = (0.5 - y) * 8;
       const ry = (x - 0.5) * 10;
-      playerCard.style.transform = 'rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)';
+      elements.playerCard.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) translate3d(0,0,0)`;
     });
-    playerCard.addEventListener('pointerleave', () => { playerCard.style.transform = 'rotateX(0deg) rotateY(0deg)'; });
+    
+    elements.playerCard.addEventListener('pointerleave', () => {
+      elements.playerCard.style.transform = 'rotateX(0deg) rotateY(0deg) translate3d(0,0,0)';
+    });
   </script>
 </body>
 </html>
