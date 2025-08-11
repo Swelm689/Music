@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>SonicWave Player</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #667eea;
+      --secondary: #764ba2;
+      --accent: #f093fb;
+      --teal: #00f5d4;
+      --glass: rgba(255, 255, 255, 0.08);
+      --stroke: rgba(255, 255, 255, 0.18);
+      --shadow: 0 10px 30px rgba(0,0,0,.3), 0 30px 80px rgba(0,0,0,.35);
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 1200px at 10% -10%, #4facfe40, transparent 55%),
+                  radial-gradient(900px 900px at 110% 10%, #f093fb33, transparent 50%),
+                  linear-gradient(135deg, #1b1b2f, #281c3a 35%, #0f1027);
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .bg { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
+    .bg::before {
+      content: ""; position: absolute; inset: -20%;
+      background:
+        radial-gradient(600px 600px at 0% 100%, #43e97b33, transparent 60%),
+        radial-gradient(700px 700px at 100% 0%, #4facfe22, transparent 60%),
+        conic-gradient(from 180deg at 50% 50%, #667eea20, #f093fb10, #764ba220, #00f5d410, #667eea20);
+      filter: blur(40px) saturate(120%);
+      animation: aurora 16s linear infinite;
+    }
+    .bg::after {
+      content: ""; position: absolute; inset: 0;
+      background:
+        radial-gradient(800px 800px at 50% 120%, rgba(255,255,255,.06), transparent 60%),
+        repeating-linear-gradient(135deg, rgba(255,255,255,.03) 0 2px, transparent 2px 10px);
+      mix-blend-mode: overlay; opacity: .7; animation: float 22s ease-in-out infinite;
+    }
+    @keyframes aurora { 0% { transform: translate3d(0,0,0) rotate(0) } 100% { transform: translate3d(0,0,0) rotate(1turn) } }
+    @keyframes float { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-20px) } }
+
+    .stage {
+      height: 100dvh;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .player {
+      position: relative; width: min(92vw, 680px);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      border: 1px solid var(--stroke);
+      border-radius: 28px; box-shadow: var(--shadow);
+      backdrop-filter: blur(24px) saturate(120%);
+      -webkit-backdrop-filter: blur(24px) saturate(120%);
+      padding: 28px 26px 26px; overflow: hidden; transform-style: preserve-3d;
+    }
+    .player::before {
+      content: ""; position: absolute; inset: -40%;
+      background:
+        radial-gradient(closest-side, rgba(102,126,234,.25), transparent 70%),
+        radial-gradient(closest-side, rgba(240,147,251,.20), transparent 70%),
+        radial-gradient(closest-side, rgba(0,245,212,.12), transparent 70%);
+      filter: blur(60px); transform: translateZ(-60px) scale(1.1);
+    }
+
+    .pulse-ring {
+      position: absolute; top: 50%; left: 50%; width: 220px; height: 220px;
+      transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+      background: radial-gradient(closest-side, rgba(255,255,255,.25), transparent),
+                  radial-gradient(closest-side, rgba(102,126,234,.35), transparent 70%);
+      mix-blend-mode: screen; opacity: .35; filter: blur(8px);
+      transition: transform .2s ease, opacity .2s ease;
+    }
+
+    .visualizer {
+      height: 180px; display: flex; align-items: flex-end; justify-content: center; gap: 8px;
+      margin: 8px auto 24px; position: relative; z-index: 1;
+    }
+    .bar {
+      width: clamp(6px, 1.2vw, 10px); height: 20%; transform-origin: bottom center; border-radius: 8px;
+      background: linear-gradient(180deg, #f093fb, #667eea);
+      box-shadow: 0 6px 20px rgba(240,147,251,.35), 0 0 14px rgba(102,126,234,.35) inset;
+      transition: opacity .25s ease; will-change: transform;
+    }
+    .player.paused .bar { opacity: .55; }
+
+    .progress-wrap { margin-bottom: 22px; }
+    .progress-bar {
+      position: relative; height: 10px; width: 100%; background: rgba(255,255,255,.18);
+      border-radius: 999px; overflow: hidden; cursor: pointer; box-shadow: inset 0 1px 6px rgba(0,0,0,.35);
+    }
+    .progress { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent), var(--teal));
+      box-shadow: 0 0 22px rgba(240,147,251,.6); border-radius: 999px; transition: width .12s linear; }
+    .progress-bar::after {
+      content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,.35), transparent, rgba(255,255,255,.35));
+      mix-blend-mode: overlay; opacity: .35; animation: sheen 3.2s infinite linear;
+    }
+    @keyframes sheen { 0% { transform: translateX(-100%) } 100% { transform: translateX(100%) } }
+
+    .controls { display: flex; align-items: center; justify-content: center; gap: 22px; margin-bottom: 16px; }
+    .control-btn {
+      width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.06));
+      border: 2px solid rgba(255,255,255,.26); color: #fff; display: grid; place-items: center; cursor: pointer;
+      position: relative; overflow: hidden; transition: transform .15s ease, border-color .2s ease, box-shadow .2s ease, background .25s ease;
+      box-shadow: 0 10px 26px rgba(0,0,0,.35), 0 0 0 0 rgba(240,147,251,.0);
+    }
+    .control-btn:hover { transform: translateY(-2px) scale(1.03); border-color: #f093fb; box-shadow: 0 14px 36px rgba(0,0,0,.4), 0 0 24px rgba(240,147,251,.45); }
+    .control-btn:active { transform: scale(.96); }
+    .control-btn svg { width: 26px; height: 26px; fill: currentColor; }
+
+    .play-btn { width: 88px; height: 88px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none;
+      box-shadow: 0 18px 50px rgba(102,126,234,.45), 0 0 60px rgba(240,147,251,.35); }
+    .play-btn:hover { box-shadow: 0 22px 64px rgba(102,126,234,.55), 0 0 80px rgba(240,147,251,.5); }
+    .play-btn svg { width: 34px; height: 34px; }
+
+    .volume { display: flex; align-items: center; gap: 14px; justify-content: center; }
+    .volume-icon { width: 22px; height: 22px; opacity: .85; }
+    .volume-slider {
+      width: clamp(180px, 40vw, 320px); appearance: none; height: 8px; border-radius: 999px; outline: none;
+      background: rgba(255,255,255,.18); cursor: pointer; position: relative;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #fff, #d8d8d8);
+      border: 2px solid rgba(255,255,255,.6); box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 20px rgba(240,147,251,.5);
+    }
+    .volume-slider::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #fff, #d8d8d8);
+      border: 2px solid rgba(255,255,255,.6); box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 20px rgba(240,147,251,.5);
+      border-image: none;
+    }
+
+    @media (max-width: 900px) {
+      .visualizer { height: 140px; gap: 6px; }
+      .play-btn { width: 84px; height: 84px; }
+    }
+    @media (max-width: 480px) {
+      .player { padding: 22px 18px 18px; border-radius: 24px; }
+      .visualizer { height: 110px; gap: 5px; }
+      .control-btn { width: 56px; height: 56px; }
+      .play-btn { width: 78px; height: 78px; }
+      .volume-slider { width: 70vw; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bg::before, .bg::after, .progress-bar::after { animation: none; }
+      .control-btn:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg" aria-hidden="true"></div>
+
+  <main class="stage">
+    <div class="player paused" id="playerCard">
+      <div class="pulse-ring" id="pulseRing"></div>
+
+      <div class="visualizer" id="visualizer">
+        <!-- 32 bars -->
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progressBar">
+          <div class="progress" id="progress"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="control-btn" id="prevBtn" aria-label="Back 10s">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7v10l-6-5 6-5zm8 0v10l-6-5 6-5z"/></svg>
+        </button>
+        <button class="control-btn play-btn" id="playBtn" aria-label="Play/Pause">
+          <svg viewBox="0 0 24 24" id="playIcon" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <svg viewBox="0 0 24 24" id="pauseIcon" aria-hidden="true" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+        <button class="control-btn" id="nextBtn" aria-label="Forward 10s">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 7v10l6-5-6-5zm-8 0v10l6-5-6-5z"/></svg>
+        </button>
+      </div>
+
+      <div class="volume">
+        <svg class="volume-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm13.5 3a3.5 3.5 0 01-2.1 3.2v-6.4A3.5 3.5 0 0117.5 12zm2.5 0a6 6 0 01-3.5 5.5v-11A6 6 0 0120 12z"/></svg>
+        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="70" aria-label="Volume" />
+      </div>
+    </div>
+  </main>
+
+  <audio id="audio" preload="auto" loop>
+    <source src="https://github.com/Swelm689/Music/blob/main/mix_42s%20(audio-joiner.com)%20(1).mp3" />
+  </audio>
+
+  <script>
+    const audio = document.getElementById('audio');
+    const playBtn = document.getElementById('playBtn');
+    const playIcon = document.getElementById('playIcon');
+    const pauseIcon = document.getElementById('pauseIcon');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const progressBar = document.getElementById('progressBar');
+    const progress = document.getElementById('progress');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const visualizer = document.getElementById('visualizer');
+    const playerCard = document.getElementById('playerCard');
+    const pulseRing = document.getElementById('pulseRing');
+
+    let isPlaying = false;
+    audio.volume = 0.7;
+
+    let audioCtx, analyser, dataArray, rafId, sourceNode;
+    const BAR_COUNT = visualizer.querySelectorAll('.bar').length;
+
+    function setupAudioGraph() {
+      if (audioCtx) return;
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        sourceNode = audioCtx.createMediaElementSource(audio);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.8;
+        const gain = audioCtx.createGain();
+        gain.gain.value = 1;
+
+        sourceNode.connect(analyser);
+        analyser.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+      } catch (e) {
+        console.warn('WebAudio unavailable, falling back to CSS animation.', e);
+      }
+    }
+
+    function animate() {
+      if (!analyser) return;
+      analyser.getByteFrequencyData(dataArray);
+
+      const bars = visualizer.querySelectorAll('.bar');
+      const step = Math.floor(dataArray.length / BAR_COUNT);
+      let level = 0;
+
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const v = dataArray[i * step] / 255; // 0..1
+        const scale = 0.2 + v * 1.6; // min height + boost
+        bars[i].style.transform = 'scaleY(' + scale.toFixed(3) + ')';
+        level += v;
+      }
+
+      level = level / BAR_COUNT;
+      const ringScale = 1 + level * 0.25;
+      const ringOpacity = 0.18 + level * 0.35;
+      pulseRing.style.transform = 'translate(-50%,-50%) scale(' + ringScale.toFixed(3) + ')';
+      pulseRing.style.opacity = ringOpacity.toFixed(3);
+
+      rafId = requestAnimationFrame(animate);
+    }
+
+    function startVisualizer() { setupAudioGraph(); if (!rafId) rafId = requestAnimationFrame(animate); }
+    function stopVisualizer() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
+
+    function updatePlayButton() {
+      playIcon.style.display = isPlaying ? 'none' : 'block';
+      pauseIcon.style.display = isPlaying ? 'block' : 'none';
+      playerCard.classList.toggle('paused', !isPlaying);
+    }
+
+    function togglePlay() {
+      if (isPlaying) {
+        audio.pause(); isPlaying = false; stopVisualizer();
+      } else {
+        audio.play().then(() => {
+          if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+          startVisualizer(); isPlaying = true;
+        }).catch(() => { isPlaying = false; });
+      }
+      if (navigator.vibrate) navigator.vibrate(10);
+      updatePlayButton();
+    }
+
+    playBtn.addEventListener('click', togglePlay);
+
+    // Seek controls repurposed: -10s / +10s
+    prevBtn.addEventListener('click', () => { audio.currentTime = Math.max(0, audio.currentTime - 10); });
+    nextBtn.addEventListener('click', () => { if (!isNaN(audio.duration)) audio.currentTime = Math.min(audio.duration, audio.currentTime + 10); });
+
+    // Progress
+    audio.addEventListener('timeupdate', () => {
+      if (isNaN(audio.duration)) return;
+      const pct = (audio.currentTime / audio.duration) * 100;
+      progress.style.width = pct + '%';
+    });
+
+    function setProgressByClientX(clientX) {
+      const rect = progressBar.getBoundingClientRect();
+      const x = Math.min(Math.max(0, clientX - rect.left), rect.width);
+      const pct = x / rect.width;
+      if (!isNaN(audio.duration)) audio.currentTime = pct * audio.duration;
+    }
+
+    let dragging = false;
+    progressBar.addEventListener('mousedown', e => { dragging = true; setProgressByClientX(e.clientX); });
+    window.addEventListener('mousemove', e => { if (dragging) setProgressByClientX(e.clientX); });
+    window.addEventListener('mouseup', () => dragging = false);
+
+    progressBar.addEventListener('touchstart', e => { dragging = true; setProgressByClientX(e.touches[0].clientX); }, { passive: true });
+    progressBar.addEventListener('touchmove', e => { if (dragging) setProgressByClientX(e.touches[0].clientX); }, { passive: false });
+    progressBar.addEventListener('touchend', () => dragging = false);
+
+    // Volume
+    volumeSlider.addEventListener('input', e => { audio.volume = e.target.value / 100; });
+
+    // Autoplay attempt; wait for gesture if blocked
+    window.addEventListener('load', () => {
+      audio.play().then(() => { isPlaying = true; startVisualizer(); updatePlayButton(); })
+                   .catch(() => { isPlaying = false; updatePlayButton(); });
+    });
+
+    // Resume audio context on first gesture (iOS)
+    ['click','touchend'].forEach(evt => {
+      window.addEventListener(evt, () => {
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      }, { once: true });
+    });
+
+    // Pause when page hidden
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && isPlaying) { audio.pause(); isPlaying = false; stopVisualizer(); updatePlayButton(); }
+    });
+
+    // Subtle tilt parallax
+    playerCard.addEventListener('pointermove', e => {
+      const rect = playerCard.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      const rx = (0.5 - y) * 8;
+      const ry = (x - 0.5) * 10;
+      playerCard.style.transform = 'rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)';
+    });
+    playerCard.addEventListener('pointerleave', () => { playerCard.style.transform = 'rotateX(0deg) rotateY(0deg)'; });
+  </script>
+</body>
+</html>
