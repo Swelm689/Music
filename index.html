@@ -26,13 +26,86 @@
       overflow: hidden;
     }
 
+    /* Initial overlay */
+    .init-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      animation: fadeIn 0.3s ease;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+
+    .init-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .init-content {
+      text-align: center;
+      padding: 40px;
+      max-width: 400px;
+    }
+
+    .init-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 24px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 20px 60px rgba(240,147,251,.4);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .init-icon svg {
+      width: 36px;
+      height: 36px;
+      fill: white;
+      transform: translateX(2px);
+    }
+
+    .init-title {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #fff, #f093fb);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .init-subtitle {
+      font-size: 16px;
+      opacity: 0.8;
+      line-height: 1.5;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 20px 60px rgba(240,147,251,.4); }
+      50% { transform: scale(1.05); box-shadow: 0 25px 80px rgba(240,147,251,.6); }
+    }
+
     /* Optimize background animations */
     .bg { 
       position: fixed; 
       inset: 0; 
       z-index: -2; 
       pointer-events: none;
-      will-change: auto; /* Only when animating */
+      will-change: auto;
     }
     .bg::before {
       content: ""; 
@@ -43,7 +116,9 @@
         radial-gradient(700px 700px at 100% 0%, #4facfe22, transparent 60%);
       filter: blur(40px) saturate(120%);
       animation: aurora 20s linear infinite;
-      transform: translate3d(0,0,0); /* Force GPU */
+      transform: translate3d(0,0,0);
+      backface-visibility: hidden;
+      perspective: 1000px;
     }
     .bg::after {
       content: ""; 
@@ -54,9 +129,9 @@
       opacity: .7; 
       animation: float 25s ease-in-out infinite;
       transform: translate3d(0,0,0);
+      backface-visibility: hidden;
     }
     
-    /* Simplified animations */
     @keyframes aurora { 
       0% { transform: translate3d(0,0,0) rotate(0) } 
       100% { transform: translate3d(0,0,0) rotate(360deg) } 
@@ -89,6 +164,7 @@
       will-change: transform;
       transform: translate3d(0,0,0);
       transition: transform 0.1s ease-out;
+      backface-visibility: hidden;
     }
     
     .player::before {
@@ -107,14 +183,14 @@
       left: 50%; 
       width: 220px; 
       height: 220px;
-      transform: translate(-50%, -50%) scale(1);
+      transform: translate(-50%, -50%) scale(1) translate3d(0,0,0);
       border-radius: 50%; 
       pointer-events: none;
       background: radial-gradient(closest-side, rgba(102,126,234,.35), transparent 70%);
       mix-blend-mode: screen; 
       opacity: .35;
       will-change: transform, opacity;
-      transition: none; /* We'll animate via JS */
+      backface-visibility: hidden;
     }
 
     .visualizer {
@@ -138,7 +214,7 @@
       box-shadow: 0 6px 20px rgba(240,147,251,.35);
       will-change: transform;
       transform: scaleY(0.2) translate3d(0,0,0);
-      transition: none; /* Animate via JS for better control */
+      backface-visibility: hidden;
     }
     
     .player.paused .bar { 
@@ -167,11 +243,7 @@
       border-radius: 999px; 
       will-change: width;
       transform: translate3d(0,0,0);
-    }
-    
-    /* Remove expensive sheen animation */
-    .progress-bar::after {
-      display: none;
+      backface-visibility: hidden;
     }
 
     .controls { 
@@ -198,6 +270,7 @@
       box-shadow: 0 10px 26px rgba(0,0,0,.35);
       will-change: transform;
       transform: translate3d(0,0,0);
+      backface-visibility: hidden;
     }
     
     .control-btn:hover { 
@@ -288,54 +361,30 @@
       .control-btn { width: 56px; height: 56px; }
       .play-btn { width: 78px; height: 78px; }
       .volume-slider { width: 70vw; }
+      .init-icon { width: 70px; height: 70px; }
+      .init-title { font-size: 24px; }
+      .init-subtitle { font-size: 14px; }
     }
     
     @media (prefers-reduced-motion: reduce) {
-      .bg::before, .bg::after { animation: none; }
+      .bg::before, .bg::after, .init-icon { animation: none; }
       .control-btn:hover { transform: none; }
-      .bar { transition: transform 0.3s ease; }
-    }
-    
-    /* Pulse animation for play button when autoplay is blocked */
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); box-shadow: 0 18px 50px rgba(102,126,234,.45), 0 0 60px rgba(240,147,251,.35); }
-      50% { transform: scale(1.05); box-shadow: 0 22px 64px rgba(102,126,234,.65), 0 0 80px rgba(240,147,251,.55); }
-    }
-    
-    /* Optimized click overlay styles */
-    .click-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      cursor: pointer;
-      backdrop-filter: blur(2px);
-      transition: opacity 0.3s ease;
-      will-change: opacity;
-    }
-    
-    .click-overlay-content {
-      color: white;
-      font-size: 18px;
-      text-align: center;
-      padding: 20px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 15px;
-      border: 1px solid rgba(255,255,255,0.2);
-      backdrop-filter: blur(10px);
-      animation: pulse 2s infinite;
-      will-change: transform;
     }
   </style>
 </head>
 <body>
   <div class="bg" aria-hidden="true"></div>
+
+  <!-- Initial Overlay -->
+  <div class="init-overlay" id="initOverlay">
+    <div class="init-content">
+      <div class="init-icon">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+      <h1 class="init-title">SonicWave Player</h1>
+      <p class="init-subtitle">Tap anywhere to start the music experience</p>
+    </div>
+  </div>
 
   <main class="stage">
     <div class="player paused" id="playerCard">
@@ -379,15 +428,23 @@
     </div>
   </main>
 
-  <audio id="audio" preload="auto" loop autoplay>
+  <audio id="audio" preload="auto" loop>
     <source src="mix_42s%20(audio-joiner.com)%20(1).mp3" type="audio/mpeg" />
+
   </audio>
 
   <script>
     'use strict';
     
+    // Performance optimizations
+    const perf = {
+      raf: window.requestAnimationFrame.bind(window),
+      caf: window.cancelAnimationFrame.bind(window),
+      now: performance.now.bind(performance)
+    };
+    
     // Cache DOM elements
-    const elements = {
+    const el = {
       audio: document.getElementById('audio'),
       playBtn: document.getElementById('playBtn'),
       playIcon: document.getElementById('playIcon'),
@@ -399,160 +456,162 @@
       volumeSlider: document.getElementById('volumeSlider'),
       visualizer: document.getElementById('visualizer'),
       playerCard: document.getElementById('playerCard'),
-      pulseRing: document.getElementById('pulseRing')
+      pulseRing: document.getElementById('pulseRing'),
+      initOverlay: document.getElementById('initOverlay')
     };
     
-    // Optimized bar elements cache
-    let bars = [];
-    let BAR_COUNT = 0;
-    let barsInitialized = false;
-
+    // Pre-cache and optimize bars
+    const bars = Array.from(el.visualizer.querySelectorAll('.bar'));
+    const BAR_COUNT = bars.length;
+    const barTransforms = new Float32Array(BAR_COUNT);
+    
+    // State
     let isPlaying = false;
+    let hasStarted = false;
     let audioCtx, analyser, dataArray, rafId, sourceNode;
     let lastFrameTime = 0;
-    const FPS_LIMIT = 60; // Increased for smoother animation
-    const FRAME_INTERVAL = 1000 / FPS_LIMIT;
-    let isLowPerformance = false;
-    let frameCount = 0;
-    let performanceCheckTime = performance.now();
+    const FPS = 24; // Lower FPS for better performance
+    const FRAME_TIME = 1000 / FPS;
     
-    elements.audio.volume = 0.7;
+    el.audio.volume = 0.7;
 
-    // Optimized audio setup
+    // Initial overlay handler
+    function handleInitialStart() {
+      if (hasStarted) return;
+      hasStarted = true;
+      
+      el.initOverlay.classList.add('hidden');
+      
+      // Initialize audio context
+      setupAudioGraph();
+      
+      // Start playing
+      el.audio.play().then(() => {
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        isPlaying = true;
+        startVisualizer();
+        updatePlayButton();
+      }).catch(err => {
+        console.warn('Autoplay failed:', err);
+        isPlaying = false;
+        updatePlayButton();
+      });
+      
+      // Haptic feedback
+      if (navigator.vibrate) navigator.vibrate(15);
+    }
+    
+    // Click anywhere on overlay to start
+    el.initOverlay.addEventListener('click', handleInitialStart);
+    el.initOverlay.addEventListener('touchend', handleInitialStart);
+
+    // Optimized audio setup with smaller buffer
     function setupAudioGraph() {
       if (audioCtx) return;
       try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+          latencyHint: 'playback',
+          sampleRate: 44100
+        });
         
-        // Optimize analyser settings for performance
-        analyser.fftSize = isLowPerformance ? 32 : 64;
-        analyser.smoothingTimeConstant = 0.8;
+        sourceNode = audioCtx.createMediaElementSource(el.audio);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256; // Even smaller for better performance
+        analyser.smoothingTimeConstant = 0.85;
         analyser.minDecibels = -90;
         analyser.maxDecibels = -10;
         
-        const bufferLength = analyser.frequencyBinCount;
-        dataArray = new Uint8Array(bufferLength);
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
         
-        if (!sourceNode) {
-          sourceNode = audioCtx.createMediaElementSource(elements.audio);
-          sourceNode.connect(analyser);
-          analyser.connect(audioCtx.destination);
-        }
-        
-        // Initialize bars cache
-        initializeBars();
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
       } catch (e) {
-        console.warn('Audio context setup failed:', e);
+        console.warn('WebAudio unavailable', e);
       }
-    }
-    
-    // Pre-cache bar elements for better performance
-    function initializeBars() {
-      if (barsInitialized) return;
-      const barElements = elements.visualizer.querySelectorAll('.bar');
-      bars.length = 0; // Clear array
-      barElements.forEach(bar => {
-        bars.push({
-          element: bar,
-          transform: bar.style.transform || 'scaleY(0.1)',
-          lastHeight: 0.1
-        });
-      });
-      BAR_COUNT = bars.length;
-      barsInitialized = true;
     }
 
-    // Optimized animation with frame limiting
-    function animate() {
-      if (!isPlaying || !analyser || !barsInitialized) return;
+    // Highly optimized animation loop
+    const animate = (currentTime) => {
+      if (!analyser) return;
       
-      const now = performance.now();
-      
-      // Performance monitoring
-      frameCount++;
-      if (frameCount % 120 === 0) { // Check every 2 seconds at 60fps
-        const elapsed = now - performanceCheckTime;
-        const actualFPS = (frameCount * 1000) / elapsed;
-        if (actualFPS < 45 && !isLowPerformance) {
-          isLowPerformance = true;
-          console.log('Switching to low performance mode');
-          // Reduce quality for better performance
-          if (analyser) {
-            analyser.fftSize = 32;
-          }
-        }
-        frameCount = 0;
-        performanceCheckTime = now;
-      }
-      
-      const targetInterval = isLowPerformance ? FRAME_INTERVAL * 2 : FRAME_INTERVAL;
-      if (now - lastFrameTime < targetInterval) {
-        rafId = requestAnimationFrame(animate);
+      // Frame rate limiting
+      const deltaTime = currentTime - lastFrameTime;
+      if (deltaTime < FRAME_TIME) {
+        rafId = perf.raf(animate);
         return;
       }
-      lastFrameTime = now;
+      lastFrameTime = currentTime;
       
+      // Get frequency data
       analyser.getByteFrequencyData(dataArray);
       
-      const dataStep = Math.floor(dataArray.length / bars.length);
+      // Process bars with optimized calculations
+      const step = (dataArray.length / BAR_COUNT) | 0; // Faster than Math.floor
+      let totalLevel = 0;
       
-      // Batch DOM updates for better performance
-      let hasChanges = false;
-      
-      for (let i = 0; i < bars.length; i++) {
-        const bar = bars[i];
-        const dataIndex = Math.min(i * dataStep, dataArray.length - 1);
-        const value = dataArray[dataIndex];
-        const height = Math.max(0.1, (value / 255) * 0.9 + 0.1);
-        
-        // Only update if change is significant (reduces repaints)
-        if (Math.abs(height - bar.lastHeight) > 0.05) {
-          bar.element.style.transform = `scaleY(${height})`;
-          bar.lastHeight = height;
-          hasChanges = true;
-        }
+      // Batch transform updates
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const value = dataArray[i * step] * 0.00392156862; // Divide by 255
+        const scale = 0.2 + value * 1.6;
+        barTransforms[i] = scale;
+        totalLevel += value;
       }
-      const ringScale = 1 + level * 0.25;
-      const ringOpacity = 0.18 + level * 0.35;
-      elements.pulseRing.style.transform = `translate(-50%,-50%) scale(${ringScale}) translate3d(0,0,0)`;
-      elements.pulseRing.style.opacity = ringOpacity;
       
-      rafId = requestAnimationFrame(animate);
-    }
+      // Apply transforms in single batch
+      for (let i = 0; i < BAR_COUNT; i++) {
+        bars[i].style.transform = `scaleY(${barTransforms[i]}) translate3d(0,0,0)`;
+      }
+      
+      // Update pulse ring
+      const avgLevel = totalLevel / BAR_COUNT;
+      const ringScale = 1 + avgLevel * 0.25;
+      const ringOpacity = 0.18 + avgLevel * 0.35;
+      el.pulseRing.style.transform = `translate(-50%,-50%) scale(${ringScale}) translate3d(0,0,0)`;
+      el.pulseRing.style.opacity = ringOpacity;
+      
+      rafId = perf.raf(animate);
+    };
 
     function startVisualizer() {
       setupAudioGraph();
       if (!rafId) {
         lastFrameTime = 0;
-        rafId = requestAnimationFrame(animate);
+        rafId = perf.raf(animate);
       }
     }
     
     function stopVisualizer() {
       if (rafId) {
-        cancelAnimationFrame(rafId);
+        perf.caf(rafId);
         rafId = null;
       }
-      // Reset bars smoothly
-      bars.forEach(bar => {
-        bar.style.transform = 'scaleY(0.2) translate3d(0,0,0)';
-      });
+      // Reset bars
+      const resetTransform = 'scaleY(0.2) translate3d(0,0,0)';
+      for (let i = 0; i < BAR_COUNT; i++) {
+        bars[i].style.transform = resetTransform;
+      }
     }
 
     function updatePlayButton() {
-      elements.playIcon.style.display = isPlaying ? 'none' : 'block';
-      elements.pauseIcon.style.display = isPlaying ? 'block' : 'none';
-      elements.playerCard.classList.toggle('paused', !isPlaying);
+      el.playIcon.style.display = isPlaying ? 'none' : 'block';
+      el.pauseIcon.style.display = isPlaying ? 'block' : 'none';
+      el.playerCard.classList.toggle('paused', !isPlaying);
     }
 
     function togglePlay() {
+      if (!hasStarted) {
+        handleInitialStart();
+        return;
+      }
+      
       if (isPlaying) {
-        elements.audio.pause();
+        el.audio.pause();
         isPlaying = false;
         stopVisualizer();
       } else {
-        elements.audio.play().then(() => {
+        el.audio.play().then(() => {
           if (audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume();
           }
@@ -566,218 +625,143 @@
       updatePlayButton();
     }
 
-    // Event listeners
-    elements.playBtn.addEventListener('click', togglePlay);
-    elements.prevBtn.addEventListener('click', () => {
-      elements.audio.currentTime = Math.max(0, elements.audio.currentTime - 10);
-    });
-    elements.nextBtn.addEventListener('click', () => {
-      if (!isNaN(elements.audio.duration)) {
-        elements.audio.currentTime = Math.min(elements.audio.duration, elements.audio.currentTime + 10);
-      }
-    });
-
-    // Highly optimized progress update with RAF throttling
-    let progressRafId;
-    let lastProgressUpdate = 0;
+    // Optimized event listeners with passive flag
+    el.playBtn.addEventListener('click', togglePlay, { passive: true });
     
-    elements.audio.addEventListener('timeupdate', () => {
-      if (progressRafId) return;
-      
-      progressRafId = requestAnimationFrame(() => {
-        progressRafId = null;
-        const now = performance.now();
-        
-        // Throttle to ~10fps for progress bar (sufficient for smooth appearance)
-        if (now - lastProgressUpdate < 100) return;
-        lastProgressUpdate = now;
-        
-        if (!isNaN(elements.audio.duration) && elements.audio.duration > 0) {
-          const pct = (elements.audio.currentTime / elements.audio.duration) * 100;
-          // Use transform instead of width for better performance
-          elements.progress.style.transform = `scaleX(${pct / 100})`;
-          elements.progress.style.transformOrigin = 'left';
-        }
-      });
-    });
-
-    // Progress bar interaction
-    function setProgressByClientX(clientX) {
-      const rect = elements.progressBar.getBoundingClientRect();
-      const x = Math.min(Math.max(0, clientX - rect.left), rect.width);
-      const pct = x / rect.width;
-      if (!isNaN(elements.audio.duration)) {
-        elements.audio.currentTime = pct * elements.audio.duration;
-      }
-    }
-
-    let dragging = false;
-    elements.progressBar.addEventListener('mousedown', e => {
-      dragging = true;
-      setProgressByClientX(e.clientX);
-    });
-    
-    window.addEventListener('mousemove', e => {
-      if (dragging) setProgressByClientX(e.clientX);
-    });
-    
-    window.addEventListener('mouseup', () => {
-      dragging = false;
-    });
-
-    // Touch events
-    elements.progressBar.addEventListener('touchstart', e => {
-      dragging = true;
-      setProgressByClientX(e.touches[0].clientX);
+    el.prevBtn.addEventListener('click', () => {
+      el.audio.currentTime = Math.max(0, el.audio.currentTime - 10);
     }, { passive: true });
     
-    elements.progressBar.addEventListener('touchmove', e => {
-      if (dragging) {
-        e.preventDefault();
-        setProgressByClientX(e.touches[0].clientX);
+    el.nextBtn.addEventListener('click', () => {
+      if (!isNaN(el.audio.duration)) {
+        el.audio.currentTime = Math.min(el.audio.duration, el.audio.currentTime + 10);
       }
-    }, { passive: false });
-    
-    elements.progressBar.addEventListener('touchend', () => {
-      dragging = false;
-    });
+    }, { passive: true });
 
-    // Volume control
-    elements.volumeSlider.addEventListener('input', e => {
-      elements.audio.volume = e.target.value / 100;
-    });
-
-    // Smart autoplay - start on any user interaction
-    let musicStarted = false;
-    let userHasInteracted = false;
-    
-    function startMusic() {
-      if (musicStarted) return;
-      
-      console.log('Starting music...');
-      elements.audio.play().then(() => {
-        console.log('Music started successfully!');
-        musicStarted = true;
-        isPlaying = true;
-        startVisualizer();
-        updatePlayButton();
-        elements.playerCard.classList.remove('paused');
-        elements.playBtn.style.animation = '';
-        
-        // Remove the click overlay
-        const overlay = document.getElementById('clickOverlay');
-        if (overlay) {
-          overlay.style.opacity = '0';
-          setTimeout(() => overlay.remove(), 300);
-        }
-      }).catch(error => {
-        console.log('Failed to start music:', error.message);
-        elements.playBtn.style.animation = 'pulse 2s infinite';
-      });
-    }
-    
-    // Optimized click overlay creation
-    function createClickOverlay() {
-      const overlay = document.createElement('div');
-      overlay.id = 'clickOverlay';
-      
-      // Use CSS classes instead of inline styles for better performance
-      overlay.className = 'click-overlay';
-      
-      const content = document.createElement('div');
-      content.className = 'click-overlay-content';
-      content.textContent = '🎵 Click anywhere to start the music 🎵';
-      
-      overlay.appendChild(content);
-      
-      // Use passive event listener for better performance
-      overlay.addEventListener('click', () => {
-        userHasInteracted = true;
-        startMusic();
-      }, { passive: true });
-      
-      document.body.appendChild(overlay);
-    }
-    
-    // Initialize on page load
-    window.addEventListener('load', () => {
-      createClickOverlay();
-      // Also try direct autoplay (might work in some cases)
-      setTimeout(startMusic, 100);
-    });
-    
-    // Handle any user interaction to start music
-    const handleUserInteraction = (e) => {
-      if (!userHasInteracted && !musicStarted) {
-        userHasInteracted = true;
-        startMusic();
+    // Debounced progress update
+    let progressTimer = null;
+    const updateProgress = () => {
+      if (!isNaN(el.audio.duration)) {
+        const pct = (el.audio.currentTime / el.audio.duration) * 100;
+        el.progress.style.width = pct + '%';
       }
     };
     
-    // Listen for user interactions
-    ['click', 'touchstart', 'keydown'].forEach(event => {
-      document.addEventListener(event, handleUserInteraction, { once: true, passive: true });
-    });
+    el.audio.addEventListener('timeupdate', () => {
+      if (progressTimer) return;
+      progressTimer = setTimeout(() => {
+        progressTimer = null;
+        updateProgress();
+      }, 100);
+    }, { passive: true });
 
-    // Resume audio context on first gesture (iOS)
-    ['click', 'touchend', 'touchstart'].forEach(evt => {
-      window.addEventListener(evt, () => {
-        if (audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume().then(() => {
-            if (!musicStarted) {
-              startMusic();
-            }
-          });
-        }
-      }, { once: true });
-    });
+    // Optimized progress bar interaction
+    function setProgressByX(clientX) {
+      const rect = el.progressBar.getBoundingClientRect();
+      const x = Math.min(Math.max(0, clientX - rect.left), rect.width);
+      const pct = x / rect.width;
+      if (!isNaN(el.audio.duration)) {
+        el.audio.currentTime = pct * el.audio.duration;
+      }
+    }
 
-    // Pause when page hidden (but don't affect music startup)
+    let isDragging = false;
+    
+    // Mouse events
+    el.progressBar.addEventListener('mousedown', e => {
+      isDragging = true;
+      setProgressByX(e.clientX);
+    }, { passive: true });
+    
+    document.addEventListener('mousemove', e => {
+      if (isDragging) setProgressByX(e.clientX);
+    }, { passive: true });
+    
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    }, { passive: true });
+
+    // Touch events
+    el.progressBar.addEventListener('touchstart', e => {
+      isDragging = true;
+      setProgressByX(e.touches[0].clientX);
+    }, { passive: true });
+    
+    document.addEventListener('touchmove', e => {
+      if (isDragging) {
+        e.preventDefault();
+        setProgressByX(e.touches[0].clientX);
+      }
+    }, { passive: false });
+    
+    document.addEventListener('touchend', () => {
+      isDragging = false;
+    }, { passive: true });
+
+    // Volume control with debouncing
+    let volumeTimer = null;
+    el.volumeSlider.addEventListener('input', e => {
+      clearTimeout(volumeTimer);
+      volumeTimer = setTimeout(() => {
+        el.audio.volume = e.target.value / 100;
+      }, 10);
+    }, { passive: true });
+
+    // Visibility change handler
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && isPlaying && musicStarted) {
-        elements.audio.pause();
+      if (document.hidden && isPlaying) {
+        el.audio.pause();
         isPlaying = false;
         stopVisualizer();
         updatePlayButton();
       }
-    });
+    }, { passive: true });
 
-    // Highly optimized tilt effect with RAF and reduced calculations
-    let tiltRafId;
-    let lastTiltUpdate = 0;
-    const TILT_THROTTLE = 16; // ~60fps max
-    let cachedRect;
-    let rectUpdateTime = 0;
+    // Optimized tilt effect with RAF throttling
+    let tiltRAF = null;
+    let mouseX = 0, mouseY = 0;
+    let currentX = 0, currentY = 0;
+    const LERP_FACTOR = 0.1;
     
-    elements.playerCard.addEventListener('pointermove', e => {
-      if (tiltRafId) return;
+    function updateTilt() {
+      currentX += (mouseX - currentX) * LERP_FACTOR;
+      currentY += (mouseY - currentY) * LERP_FACTOR;
       
-      tiltRafId = requestAnimationFrame(() => {
-        tiltRafId = null;
-        const now = performance.now();
-        
-        if (now - lastTiltUpdate < TILT_THROTTLE) return;
-        lastTiltUpdate = now;
-        
-        // Cache rect for 100ms to avoid expensive getBoundingClientRect calls
-        if (!cachedRect || now - rectUpdateTime > 100) {
-          cachedRect = elements.playerCard.getBoundingClientRect();
-          rectUpdateTime = now;
-        }
-        
-        const x = (e.clientX - cachedRect.left) / cachedRect.width;
-        const y = (e.clientY - cachedRect.top) / cachedRect.height;
-        const rx = (0.5 - y) * 8;
-        const ry = (x - 0.5) * 10;
-        
-        // Use transform3d for hardware acceleration
-        elements.playerCard.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translate3d(0,0,0)`;
-      });
-    });
+      const rx = (0.5 - currentY) * 8;
+      const ry = (currentX - 0.5) * 10;
+      el.playerCard.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) translate3d(0,0,0)`;
+      
+      if (Math.abs(mouseX - currentX) > 0.001 || Math.abs(mouseY - currentY) > 0.001) {
+        tiltRAF = perf.raf(updateTilt);
+      } else {
+        tiltRAF = null;
+      }
+    }
     
-    elements.playerCard.addEventListener('pointerleave', () => {
-      cachedRect = null; // Clear cache
-      elements.playerCard.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translate3d(0,0,0)';
+    el.playerCard.addEventListener('pointermove', e => {
+      const rect = el.playerCard.getBoundingClientRect();
+      mouseX = (e.clientX - rect.left) / rect.width;
+      mouseY = (e.clientY - rect.top) / rect.height;
+      
+      if (!tiltRAF) {
+        tiltRAF = perf.raf(updateTilt);
+      }
+    }, { passive: true });
+    
+    el.playerCard.addEventListener('pointerleave', () => {
+      mouseX = 0.5;
+      mouseY = 0.5;
+      if (!tiltRAF) {
+        tiltRAF = perf.raf(updateTilt);
+      }
+    }, { passive: true });
+
+    // Cleanup on unload
+    window.addEventListener('beforeunload', () => {
+      stopVisualizer();
+      if (audioCtx) {
+        audioCtx.close();
+      }
     });
   </script>
 </body>
